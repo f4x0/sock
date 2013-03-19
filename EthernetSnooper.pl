@@ -26,7 +26,8 @@ foreach my $etype(keys %typeDesc){$typeTotals{$etype}=0;}
 sub gotPacket{
 	my ($userArg, $header, $packet) = @_;
 	my $frame = NetPacket::Ethernet->decode($packet);
-	$typeTotals{$frame->{type}}++;
+	if($frame->{type}<1501){$typeTotals{1500}++;}
+	else{$typeTotals{$frame->{type}}++;}
 	#foreach (keys %{$frame}){print;}	
 	#print $frame->{src_mac};
 	$numPackets++;
@@ -36,15 +37,15 @@ sub displayResults{
 	print "-"x10,"$numPackets frames processed","-"x10,"\n";
 	
 	foreach my $etype (sort keys %typeDesc){
-	printf "%10s generated ", $typeDesc{$etype} ;
-	printf "%5d packets \n",$typeTotals{$etype};}
-	
-	print "\n","-"x10,"Raw Statistics","-"x10,"\n";
-	print "frameType\tFrequency\n\n";
-	foreach my $eTotal (sort keys %typeTotals)
-	{
-		printf "%5lx\t\t%5d\n",$eTotal,$typeTotals{$eTotal};
-		}
+	printf "%10s generated ", $typeDesc{$etype};
+	printf "%5d packets \n",$typeTotals{$etype};
+	}
+
+	printf "\nNon Ethernet II(DIX) frames generated %3d packets\n",$typeTotals{1500};
+	#print "\n","-"x10,"Raw Statistics","-"x10,"\n";
+	#print "frameType\tFrequency\n\n";
+	#foreach my $eTotal (sort keys %typeTotals)
+	#{printf "%5lx\t\t%5d\n",$eTotal,$typeTotals{$eTotal};}
 }
 my $status = Net::PcapUtils::loop(
 					\&gotPacket,
