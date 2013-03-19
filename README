@@ -1,0 +1,6 @@
+This project is one the way to learn Networking protocols and Utilities in perl
+Mostly working using libpcap and ethernet packet parsing etc ..
+
+Reference Book: Programming the Network with Perl
+		Author : Paul Barry
+		Publisher: Wiley 2002
