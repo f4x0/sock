@@ -33,18 +33,22 @@ sub gotPacket{
 }
 
 sub displayResults{
-	print "$numPackets frames processed\n";
+	print "-"x10,"$numPackets frames processed","-"x10,"\n";
 	
 	foreach my $etype (sort keys %typeDesc){
-	print "$typeDesc{$etype} generated ";
-	if(exists $typeTotals{$etype})
-		{print "$typeTotals{$etype} packets \n";}
-	else {print "no packets \n";}
-	}
+	printf "%10s generated ", $typeDesc{$etype} ;
+	printf "%5d packets \n",$typeTotals{$etype};}
+	
+	print "\n","-"x10,"Raw Statistics","-"x10,"\n";
+	print "frameType\tFrequency\n\n";
+	foreach my $eTotal (sort keys %typeTotals)
+	{
+		printf "%5lx\t\t%5d\n",$eTotal,$typeTotals{$eTotal};
+		}
 }
 my $status = Net::PcapUtils::loop(
 					\&gotPacket,
-					NUMPACKETS => 100,
+					NUMPACKETS => 1000,
 					);
 if( $status){
 	print "Net::PcapUtils::loop retured $status \n";
