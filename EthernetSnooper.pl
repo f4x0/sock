@@ -4,7 +4,7 @@ use 5.6.0;
 use strict;
 use Net::PcapUtils;
 use NetPacket::Ethernet qw(:ALL);
-
+use NetPacket::IP;
 use XtraType;
 
 our %typeTotals = ();
@@ -21,16 +21,32 @@ our %typeDesc = (
 			0x876B => 'TCP/IPc',
 			);
 our $numPackets = 0;
-foreach my $etype(keys %typeDesc){$typeTotals{$etype}=0;}
+our %srce = ();
+our %dest = ();
+our %e2ip = ();
 
+foreach my $etype(keys %typeDesc){$typeTotals{$etype}=0;}
+my $ipType = 0;
 sub gotPacket{
 	my ($userArg, $header, $packet) = @_;
 	my $frame = NetPacket::Ethernet->decode($packet);
 	if($frame->{type}<1501){$typeTotals{1500}++;}
 	else{$typeTotals{$frame->{type}}++;}
+	$srce{$frame->{src_mac}}++;
+	$dest{$frame->{dest_mac}}++;
 	#foreach (keys %{$frame}){print;}	
 	#print $frame->{src_mac};
 	$numPackets++;
+	if($frame->{type} == NetPacket::Ethernet::ETH_TYPE_IP){
+		my $ipDatagram = NetPacket::IP->decode(NetPacket::Ethernet::eth_strip($packet));
+		$e2ip{$frame->{src_mac}} = $ipDatagram->{src_ip};
+		$e2ip{$frame->{dest_mac}} = $ipDatagram->{dest_ip};
+		$ipType++;
+	}
+	else {
+	$e2ip{$frame->{src_mac}} = 'NO_IP';
+	$e2ip{$frame->{dest_mac}}='NO_IP';}
+
 }
 
 sub displayResults{
@@ -46,6 +62,20 @@ sub displayResults{
 	#print "frameType\tFrequency\n\n";
 	#foreach my $eTotal (sort keys %typeTotals)
 	#{printf "%5lx\t\t%5d\n",$eTotal,$typeTotals{$eTotal};}
+
+	printf "\n\n---------------------Route Statistics---------------\n";
+	printf "-----------------------Source generated--------------\n";
+	foreach my $maddr (sort keys %srce)
+	{
+		printf "$maddr, %-18s ->  %5d\n",($e2ip{$maddr}),$srce{$maddr};
+	}
+	printf "---------------------Destination Generated-----------\n";
+	foreach my $maddr (sort keys %dest)
+	{
+		printf "$maddr, %-18s ->  %5d\n",$e2ip{$maddr},$dest{$maddr};
+	}
+	printf "\n------------------IP Type Packets -> $ipType-------\n";
+	#foreach my $maddr (sort keys %e2ip){print "$maddr -> $e2ip{$maddr}\n";}
 }
 my $status = Net::PcapUtils::loop(
 					\&gotPacket,
