@@ -7,80 +7,41 @@ use NetPacket::Ethernet qw(:ALL);
 use NetPacket::IP;
 use XtraType;
 
-our %typeTotals = ();
-our %typeDesc = (
-			0x0800 => 'IPv4',
-			0x0806 => 'ARP',
-			0x809B => 'AppleTalk',
-			0x814C => 'SNMP',
-			0x86DD => 'IPv6',
-			0x880B => 'PPP',
-			0x8137 => 'NOVELL1',
-			0x8138 => 'NOVELL2',
-			0x8035 => 'RARP',
-			0x876B => 'TCP/IPc',
-			);
-our $numPackets = 0;
-our %srce = ();
-our %dest = ();
-our %e2ip = ();
-
-foreach my $etype(keys %typeDesc){$typeTotals{$etype}=0;}
-my $ipType = 0;
+our %ttlTotal = ();
+our $numDatagram = 0;
 sub gotPacket{
 	my $packet = shift;
-	#my ($userArg, $header, $packet) = @_;
-	my $frame = NetPacket::Ethernet->decode($packet);
-	#if($frame->{type}<1501){$typeTotals{1500}++;}
-	#else{$typeTotals{$frame->{type}}++;}
-	#$srce{$frame->{src_mac}}++;
-	#$dest{$frame->{dest_mac}}++;
-	#foreach (keys %{$frame}){print;}	
-	#print $frame->{src_mac};
-	$numPackets++;
-	if($frame->{type} == NetPacket::Ethernet::ETH_TYPE_IP){
-		my $ipDatagram = NetPacket::IP->decode(NetPacket::Ethernet::eth_strip($packet));
-		$e2ip{$frame->{src_mac}} = $ipDatagram->{src_ip};
-		$e2ip{$frame->{dest_mac}} = $ipDatagram->{dest_ip};
-		$ipType++;
+	my $ipDatagram= NetPacket::IP->decode(NetPacket::Ethernet::eth_strip($packet));
+	if(! exists $ttlTotal{$ipDatagram->{ttl}}){
+	$ttlTotal{$ipDatagram->{ttl}} = 1;
+	}else{
+	$ttlTotal{$ipDatagram->{ttl}}++;
 	}
-	else {
-	$e2ip{$frame->{src_mac}} = 'NO_IP';
-	$e2ip{$frame->{dest_mac}}='NO_IP';}
-
+	$numDatagram++;
 }
 
-sub displayResults{
-	print "-"x10,"$numPackets frames processed","-"x10,"\n";
-	
-	foreach my $etype (sort keys %typeDesc){
-	printf "%10s generated ", $typeDesc{$etype};
-	printf "%5d packets \n",$typeTotals{$etype};
-	}
 
-	printf "\nNon Ethernet II(DIX) frames generated %3d packets\n",$typeTotals{1500};
-	#print "\n","-"x10,"Raw Statistics","-"x10,"\n";
-	#print "frameType\tFrequency\n\n";
-	#foreach my $eTotal (sort keys %typeTotals)
-	#{printf "%5lx\t\t%5d\n",$eTotal,$typeTotals{$eTotal};}
-
-	printf "\n\n---------------------Route Statistics---------------\n";
-	printf "-----------------------Source generated--------------\n";
-	foreach my $maddr (sort keys %srce)
-	{
-		printf "$maddr, %-18s ->  %5d\n",($e2ip{$maddr}),$srce{$maddr};
-	}
-	printf "---------------------Destination Generated-----------\n";
-	foreach my $maddr (sort keys %dest)
-	{
-		printf "$maddr, %-18s ->  %5d\n",$e2ip{$maddr},$dest{$maddr};
-	}
-	printf "\n------------------IP Type Packets -> $ipType-------\n";
-	#foreach my $maddr (sort keys %e2ip){print "$maddr -> $e2ip{$maddr}\n";}
-}
 sub displayResultsTTL{
-	
+	print "Number of Datagrams Processed $numDatagram\n";
 
+	my $minttl = 256;
+	my $maxttl = 0;
+	my $avgttl = 0;
+	foreach my $curttl(keys %ttlTotal){
+		if($curttl < $minttl){$minttl = $curttl;}
+		if($curttl > $maxttl){$maxttl = $curttl;}
+		$avgttl = $avgttl + $curttl * $ttlTotal{$curttl};
+	}
+	$avgttl = $avgttl/$numDatagram;
+
+	print "-"x40,"\n\t\tTTL Statistics\n";
+	printf "Maximum TTL Value = %3d\n",$maxttl;
+	printf "Minimum TTL Value = %3d\n",$minttl;
+	printf "Average TTL Value = %3d\n",$avgttl;
+	print "-"x10,"TTL Distribution","-"x10,"\n";
+	foreach my $ttlkey(sort {$a <=> $b}keys %ttlTotal){
+	printf "TTL Value: %3d\t Freq: %3d\n",$ttlkey,$ttlTotal{$ttlkey};
+	}
 }
 my $pktHandle= Net::PcapUtils::open(FILTER =>'ip');
 if(!ref($pktHandle)){
@@ -96,5 +57,5 @@ while(($now = time) < $finalTime){
 		gotPacket($nextPacket);
 }
 
-displayResults;
+displayResultsTTL;
 
