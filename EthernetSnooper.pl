@@ -28,12 +28,13 @@ our %e2ip = ();
 foreach my $etype(keys %typeDesc){$typeTotals{$etype}=0;}
 my $ipType = 0;
 sub gotPacket{
-	my ($userArg, $header, $packet) = @_;
+	my $packet = shift;
+	#my ($userArg, $header, $packet) = @_;
 	my $frame = NetPacket::Ethernet->decode($packet);
-	if($frame->{type}<1501){$typeTotals{1500}++;}
-	else{$typeTotals{$frame->{type}}++;}
-	$srce{$frame->{src_mac}}++;
-	$dest{$frame->{dest_mac}}++;
+	#if($frame->{type}<1501){$typeTotals{1500}++;}
+	#else{$typeTotals{$frame->{type}}++;}
+	#$srce{$frame->{src_mac}}++;
+	#$dest{$frame->{dest_mac}}++;
 	#foreach (keys %{$frame}){print;}	
 	#print $frame->{src_mac};
 	$numPackets++;
@@ -77,14 +78,23 @@ sub displayResults{
 	printf "\n------------------IP Type Packets -> $ipType-------\n";
 	#foreach my $maddr (sort keys %e2ip){print "$maddr -> $e2ip{$maddr}\n";}
 }
-my $status = Net::PcapUtils::loop(
-					\&gotPacket,
-					NUMPACKETS => 1000,
-					);
-if( $status){
-	print "Net::PcapUtils::loop retured $status \n";
+sub displayResultsTTL{
+	
+
 }
-else{
-	displayResults;
+my $pktHandle= Net::PcapUtils::open(FILTER =>'ip');
+if(!ref($pktHandle)){
+		print "Net::PcapUtilis::open retured $pktHandle\n";
+		exit;
+	}
+my $reqTime = 3; #Time to snoop in minutes
+my $now = time;
+my $finalTime = $now+(60*$reqTime);
+
+while(($now = time) < $finalTime){
+		my ($nextPacket, %nextHeader) = Net::PcapUtils::next($pktHandle);
+		gotPacket($nextPacket);
 }
+
+displayResults;
 
