@@ -3,44 +3,38 @@ use 5.6.0;
 
 use strict;
 use Net::PcapUtils;
-use NetPacket::Ethernet qw(:ALL);
+use NetPacket::Ethernet qw(:strip);
 use NetPacket::IP;
 use XtraType;
 
-our %ttlTotal = ();
+our %ipTypeTotal = ();
+our %ipTypeDesc = (
+		0 => 'IP',
+		1 => 'ICMP',
+		2 => 'IGMP',
+		4 => 'IP/IP',
+		6 => 'TCP',
+		17 => 'UDP',
+);
+
 our $numDatagram = 0;
 sub gotPacket{
 	my $packet = shift;
 	my $ipDatagram= NetPacket::IP->decode(NetPacket::Ethernet::eth_strip($packet));
-	if(! exists $ttlTotal{$ipDatagram->{ttl}}){
-	$ttlTotal{$ipDatagram->{ttl}} = 1;
+	if(! exists $ipTypeTotal{$ipDatagram->{proto}}){
+	$ipTypeTotal{$ipDatagram->{proto}} = 1;
 	}else{
-	$ttlTotal{$ipDatagram->{ttl}}++;
+	$ipTypeTotal{$ipDatagram->{proto}}++;
 	}
 	$numDatagram++;
 }
 
 
-sub displayResultsTTL{
-	print "Number of Datagrams Processed $numDatagram\n";
-
-	my $minttl = 256;
-	my $maxttl = 0;
-	my $avgttl = 0;
-	foreach my $curttl(keys %ttlTotal){
-		if($curttl < $minttl){$minttl = $curttl;}
-		if($curttl > $maxttl){$maxttl = $curttl;}
-		$avgttl = $avgttl + $curttl * $ttlTotal{$curttl};
-	}
-	$avgttl = $avgttl/$numDatagram;
-
-	print "-"x40,"\n\t\tTTL Statistics\n";
-	printf "Maximum TTL Value = %3d\n",$maxttl;
-	printf "Minimum TTL Value = %3d\n",$minttl;
-	printf "Average TTL Value = %3d\n",$avgttl;
-	print "-"x10,"TTL Distribution","-"x10,"\n";
-	foreach my $ttlkey(sort {$a <=> $b}keys %ttlTotal){
-	printf "TTL Value: %3d\t Freq: %3d\n",$ttlkey,$ttlTotal{$ttlkey};
+sub displayResults{
+	print "Number of datagrams Processed = $numDatagram\n\n";
+	print "-"x15,"Packet Type Statistics","-"x15,"\n";
+	foreach my $ipTypeKey(sort {$a <=> $b}keys %ipTypeTotal){
+	printf "%5s\t ->%5d\n",$ipTypeDesc{$ipTypeKey},$ipTypeTotal{$ipTypeKey};
 	}
 }
 my $pktHandle= Net::PcapUtils::open(FILTER =>'ip');
@@ -57,5 +51,5 @@ while(($now = time) < $finalTime){
 		gotPacket($nextPacket);
 }
 
-displayResultsTTL;
+displayResults;
 
